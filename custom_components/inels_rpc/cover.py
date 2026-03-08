@@ -6,13 +6,6 @@ from pyinels.pyTimer import TimerError
 
 from homeassistant.components.cover import CoverEntity
 
-from homeassistant.const import (
-    STATE_CLOSED,
-    STATE_OPEN,
-    STATE_CLOSING,
-    STATE_OPENING,
-)
-
 from custom_components.inels_rpc.const import (
     CLASS_SHUTTER,
     DOMAIN,
@@ -38,22 +31,23 @@ async def async_setup_entry(hass, entry, async_add_devices):
 
     await coordinator.async_refresh()
 
-    if len(shutters) > 0:
+    if shutters:
         async_add_devices(
-            [InelsShutter(coordinator, shutter) for shutter in shutters], True
+            [InelsShutter(coordinator, shutter) for shutter in shutters],
+            True,
         )
 
 
 class InelsShutter(InelsEntity, CoverEntity):
     """Inels shutter class."""
 
+    _attr_assumed_state = True
+
     def __init__(self, coordinator, shutter):
         """Initialization of the InelsShutter."""
         super().__init__(coordinator, shutter)
-
         self._shutter = shutter
         self._coordinator = coordinator
-        self._state = STATE_CLOSED
 
     @property
     def name(self):
@@ -63,59 +57,33 @@ class InelsShutter(InelsEntity, CoverEntity):
     @property
     def icon(self):
         """Return the icon of this shutter."""
-        return (
-            ICON_SHUTTER_CLOSED
-            if self.current_cover_position == 0
-            else ICON_SHUTTER_OPENED
-        )
+        pos = self.current_cover_position
+        return ICON_SHUTTER_CLOSED if pos == 0 else ICON_SHUTTER_OPENED
 
     @property
     def is_opening(self):
         """Shutter is opening."""
-        return self._shutter.state == STATE_OPENING
+        return False
 
     @property
     def is_closing(self):
         """Shutter is closing."""
-        return self._shutter.state == STATE_CLOSING
+        return False
 
     @property
     def is_closed(self):
-        """Shutter is closed."""
-        return self._shutter.state == STATE_CLOSED
+        """Unknown real closed/open state."""
+        return None
 
     @property
     def current_cover_position(self):
-        """Current cover position."""
-        return self._shutter.current_position
+        """Real position is unknown."""
+        return None
 
     @property
     def device_class(self):
         """Shutter device class."""
         return CLASS_SHUTTER
-
-    @property
-    def state(self):
-        """Overided state CoverEntity."""
-        S = self  # constant
-
-        result = (
-            STATE_OPENING
-            if S.is_opening
-            else STATE_CLOSING
-            if S.is_closing
-            else STATE_CLOSED
-            if S.is_closed
-            else STATE_OPEN
-            if S.device.state == STATE_OPEN
-            else STATE_CLOSED
-        )
-
-        return result
-
-    async def async_set_cover_position(self, **kwargs):
-        """Move the cover to a specific position."""
-        self._shutter.position = kwargs["position"]
 
     async def async_open_cover(self, **kwargs):
         """Open the shutter."""
